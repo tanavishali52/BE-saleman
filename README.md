@@ -39,3 +39,18 @@ It supports:
 ```bash
 git clone https://github.com/<username>/<repo>.git
 cd <repo>
+
+Install dependencies:
+
+npm install
+
+Create a .env file in the root:
+
+
+Start the server:
+
+npm run dev   # if using nodemon
+# or
+node server.js
+
+Server runs on http://localhost:5000
