@@ -44,15 +44,15 @@ const generateAccessToken = (user) => {
  *               - password
  *             properties:
  *               name:
- *                 type: string
+ *                 type: ali
  *               phone:
- *                 type: string
+ *                 type: 2345673
  *               address:
- *                 type: string
+ *                 type: okara
  *               email:
- *                 type: string
+ *                 type: tanavish@gmail.com
  *               password:
- *                 type: string
+ *                 type: 12345
  *     responses:
  *       201:
  *         description: Admin user created successfully
@@ -141,6 +141,85 @@ router.post("/login", async (req, res) => {
       res.status(500).json({ message: error.message });
     }
   });
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Change password (User must be logged in)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Old password incorrect or validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/change-password",
+  verifyAccessToken,
+  async (req, res) => {
+    try {
+      const { oldPassword, newPassword } = req.body;
+
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({
+          message: "Old password and new password are required",
+        });
+      }
+
+      // Find user from token (req.user.id set in middleware)
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Compare old password
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      user.password = hashedPassword;
+
+      // Optional: invalidate refresh token
+      user.refreshToken = null;
+
+      await user.save();
+
+      res.status(200).json({
+        message: "Password changed successfully",
+      });
+
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
+
+
 
 /**
  * @swagger
