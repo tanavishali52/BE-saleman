@@ -70,6 +70,12 @@ router.post("/signup", async (req, res) => {
       if (!name || !phone || !address || !password) {
         return res.status(400).json({ message: "All fields except email are required" });
       }
+
+      // Password must be at least 8 chars, include a letter, a number and a special character
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({ message: "Password must be at least 8 characters and include at least one letter, one number, and one special character" });
+      }
   
       const existingUser = await User.findOne({ email });
       if (existingUser) return res.status(400).json({ message: "User already exists" });
@@ -185,6 +191,12 @@ router.post(
         return res.status(400).json({
           message: "Old password and new password are required",
         });
+      }
+
+      // Validate new password strength same as signup
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+      if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({ message: "New password must be at least 8 characters and include at least one letter, one number, and one special character" });
       }
 
       // Find user from token (req.user.id set in middleware)
