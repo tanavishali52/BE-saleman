@@ -1,3 +1,4 @@
+require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const mongoose = require("mongoose");
@@ -19,7 +20,8 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api", require("./routes/category"));
-app.use("/api", require("./routes/item"));
+app.use("/api", require("./routes/add-product"));
+app.use("/api", require("./routes/shop"));
 // Validate required env before connecting
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
