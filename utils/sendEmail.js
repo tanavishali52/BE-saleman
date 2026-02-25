@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, html) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("Email service not configured. Set SMTP_USER and SMTP_PASS in .env");
   }
@@ -15,12 +15,11 @@ const sendEmail = async (to, subject, text) => {
   });
 
   await transporter.sendMail({
-    from: process.env.SMTP_USER,
+    from: `"Auth System" <${process.env.SMTP_USER}>`,
     to,
     subject,
-    text,
+    html,
   });
 };
 
 module.exports = sendEmail;
-

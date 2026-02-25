@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const User = require("../models/user");
 const verifyAccessToken = require("../middleware/authMiddleware");
 const sendEmail = require("../utils/sendEmail");
+const { passwordResetTemplate } = require("../utils/emailTemplates");
 
 const router = express.Router();
 
@@ -200,8 +201,8 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
     await sendEmail(
       email,
-      "Password Reset Code",
-      `Your verification code is: ${resetCode}. It expires in 10 minutes.`
+      "Your Password Reset Code",
+      passwordResetTemplate(resetCode)
     );
     res.json({ message: "Verification code sent to email" });
   } catch (error) {
