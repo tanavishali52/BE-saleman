@@ -14,6 +14,12 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
 
+  idCardNumber: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+
   email: {
     type: String,
     unique: true,
@@ -29,6 +35,15 @@ const userSchema = new mongoose.Schema({
     enum: ["admin", "salesman"],
     default: "salesman",
   },
+
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+
+  resetCode: String,
+
+  resetCodeExpiry: Date,
 
   refreshToken: String,
 

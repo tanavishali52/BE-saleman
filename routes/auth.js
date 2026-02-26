@@ -1,10 +1,15 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/user");
 const verifyAccessToken = require("../middleware/authMiddleware");
+const sendEmail = require("../utils/sendEmail");
+const { passwordResetTemplate } = require("../utils/emailTemplates");
 
 const router = express.Router();
+
+const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const generateAccessToken = (user) => {
     return jwt.sign(
@@ -111,8 +116,10 @@ router.post("/signup", async (req, res) => {
  *             properties:
  *               email:
  *                 type: string
+ *                 example: "tanawishalrai5271@gmail.com"
  *               password:
  *                 type: string
+ *                 example: "5271Alr@"
  *     responses:
  *       200:
  *         description: Returns accessToken and refreshToken
@@ -131,6 +138,10 @@ router.post("/login", async (req, res) => {
   
       const user = await User.findOne({ email });
       if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+      if (user.isActive === false) {
+        return res.status(403).json({ message: "Your account is blocked. Please contact the administrator." });
+      }
   
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
@@ -147,6 +158,174 @@ router.post("/login", async (req, res) => {
       res.status(500).json({ message: error.message });
     }
   });
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset (sends OTP to email)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verification code sent to email
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedCode = crypto.createHash("sha256").update(resetCode).digest("hex");
+    user.resetCode = hashedCode;
+    user.resetCodeExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+    await sendEmail(
+      email,
+      "Your Password Reset Code",
+      passwordResetTemplate(resetCode)
+    );
+    res.json({ message: "Verification code sent to email" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/verify-code:
+ *   post:
+ *     summary: Verify OTP for password reset
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *             properties:
+ *               email:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *                 description: 6-digit OTP received by email
+ *     responses:
+ *       200:
+ *         description: Code verified
+ *       400:
+ *         description: Invalid or expired code
+ *       500:
+ *         description: Server error
+ */
+router.post("/verify-code", async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res.status(400).json({ message: "Email and code are required" });
+    }
+    const user = await User.findOne({ email });
+    const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+    if (
+      !user ||
+      user.resetCode !== hashedCode ||
+      !user.resetCodeExpiry ||
+      user.resetCodeExpiry < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    res.json({ message: "Code verified" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password after verifying OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *                 description: 6-digit OTP (must match verify-code)
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Invalid code or validation error
+ *       500:
+ *         description: Server error
+ */
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body || {};
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: "Email, code, and newPassword are required" });
+    }
+    const user = await User.findOne({ email });
+    const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+    if (
+      !user ||
+      user.resetCode !== hashedCode ||
+      !user.resetCodeExpiry ||
+      user.resetCodeExpiry < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters and include at least one letter, one number, and one special character",
+      });
+    }
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetCode = undefined;
+    user.resetCodeExpiry = undefined;
+    await user.save();
+    res.json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
 
 /**
  * @swagger
