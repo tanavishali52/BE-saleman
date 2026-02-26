@@ -13,7 +13,11 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "BE Saleman API is running 🚀",
+  });
+});
 // Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
