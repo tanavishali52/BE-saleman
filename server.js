@@ -7,6 +7,7 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 // # http://localhost:5000/api-docs
+
 // Load .env from api directory so it works regardless of cwd
 dotenv.config({ path: path.join(__dirname, ".env") });
 
