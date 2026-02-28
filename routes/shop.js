@@ -109,7 +109,7 @@ router.post(
 router.get(
   "/admin/shops",
   verifyAccessToken,
-  checkRole(["admin"]),
+  checkRole(["admin", "salesman"]),
   async (req, res) => {
     try {
       const { ownerName, city } = req.query;

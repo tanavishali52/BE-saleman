@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
-
+// # http://localhost:5000/api-docs
 // Load .env from api directory so it works regardless of cwd
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -19,9 +19,10 @@ app.get("/", (req, res) => {
     message: "BE Saleman API is running 🚀",
   });
 });
-// Routes
+// Routes (order router before /api/admin so /api/admin/order/:id/payment is handled by order router)
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api", require("./routes/order"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api", require("./routes/category"));
 app.use("/api", require("./routes/add-product"));

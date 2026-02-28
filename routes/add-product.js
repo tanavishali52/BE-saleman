@@ -10,8 +10,8 @@ const router = express.Router();
  * @swagger
  * /api/admin/add-product:
  *   post:
- *     summary: Admin creates a new item
- *     tags: [Item]
+ *     summary: Admin creates a new product
+ *     tags: [Product]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -37,7 +37,7 @@ const router = express.Router();
  *                 type: number
  *     responses:
  *       201:
- *         description: Item created successfully
+ *         description: Product created successfully
  *       400:
  *         description: Validation error
  *       403:
@@ -69,8 +69,8 @@ router.post(
       });
 
       res.status(201).json({
-        message: "Item created successfully",
-        item,
+        message: "Product created successfully",
+        product: item,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -83,7 +83,7 @@ router.post(
  * /api/admin/product/{id}:
  *   put:
  *     summary: Update a product
- *     tags: [Item]
+ *     tags: [Product]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -109,9 +109,53 @@ router.post(
  *                 type: number
  *               quantity:
  *                 type: number
+ *     responses:
+ *       200:
+ *         description: Product updated successfully (full product with populated category)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Product updated successfully
+ *                 product:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     categoryType:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                           example: Fruits
+ *                     price:
+ *                       type: number
+ *                       example: 200
+ *                     quantity:
+ *                       type: number
+ *                       example: 50
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Invalid category ID
+ *       404:
+ *         description: Product not found
+ *       500:
+ *         description: Server error
  *   delete:
  *     summary: Delete a product
- *     tags: [Item]
+ *     tags: [Product]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -151,12 +195,14 @@ router.put(
       );
 
       if (!updatedItem) {
-        return res.status(404).json({ message: "Item not found" });
+        return res.status(404).json({ message: "Product not found" });
       }
 
+      const product = await Item.findById(id).populate("categoryType", "name");
+
       res.json({
-        message: "Item updated successfully",
-        item: updatedItem,
+        message: "Product updated successfully",
+        product: product.toObject ? product.toObject() : product,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -175,10 +221,10 @@ router.delete(
       const deletedItem = await Item.findByIdAndDelete(id);
 
       if (!deletedItem) {
-        return res.status(404).json({ message: "Item not found" });
+        return res.status(404).json({ message: "Product not found" });
       }
 
-      res.json({ message: "Item deleted successfully" });
+      res.json({ message: "Product deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -191,7 +237,7 @@ router.delete(
  *   get:
  *     summary: Get products (with optional search)
  *     description: Returns products with populated category name. You can filter by product name or category.
- *     tags: [Item]
+ *     tags: [Product]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -212,7 +258,7 @@ router.delete(
  *         description: Filter products by category name (partial match, case-insensitive)
  *     responses:
  *       200:
- *         description: List of items
+ *         description: List of products
  *         content:
  *           application/json:
  *             schema:
@@ -243,6 +289,45 @@ router.delete(
  *       500:
  *         description: Server error
  */
+
+/**
+ * @swagger
+ * /api/product/count:
+ *   get:
+ *     summary: Get total number of products
+ *     description: Returns the count of all products in the system.
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total product count
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                   example: 42
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/product/count",
+  verifyAccessToken,
+  checkRole(["admin", "salesman"]),
+  async (req, res) => {
+    try {
+      const count = await Item.countDocuments();
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+);
 
 router.get(
   "/product",
